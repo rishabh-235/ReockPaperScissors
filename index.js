@@ -1,6 +1,51 @@
 let playerScore = 0;
 let pcScore = 0;
-const container = document.querySelector(".container");
+
+const containerHtml = `<div class="scoreboard">
+        <div class="logo">
+          <span>ROCK</span>
+          <span>PAPER</span>
+          <span>SCISSORS</span>
+        </div>
+        <div class="score">
+          <div id="pc-score" class="score-card">
+            <span>Computer score</span>
+            <h1>0</h1>
+          </div>
+          <div id="player-score" class="score-card">
+            <span>Your score</span>
+            <h1>0</h1>
+          </div>
+        </div>
+      </div>
+
+     
+      <button onclick="showRules()" class="rule-button">RULE</button>
+      <div class="rule-card-popup">
+        <h1>Game Rules</h1>
+        <ul>
+          <li>
+            Rock beats scissors, scissors beat paper, and paper beats rock
+          </li>
+          <li>
+            Agree ahead of time whether you'll count Off "rock, paper, scissors,
+            shoot" or just "rock, paper, scissors"
+          </li>
+          <li>
+            Use rock, paper scissors to settle minor decisions or simply play to
+            pass the time
+          </li>
+          <li>
+            If both player lay down the same hand, each player lays down another
+            hand
+          </li>
+        </ul>
+      </div>
+      <img
+        class="close-button"
+        src="https://img.icons8.com/color/500/cancel--v1.png"
+        alt="close"
+      />`;
 const hurrayHtml = `<svg
         class="stars"
         width="450"
@@ -76,13 +121,13 @@ const hurrayHtml = `<svg
         <button class="hurray-close-button">CLOSE</button>
       </div>`;
 const gameArea = `<div class="game-container">
-        <button  class="game-card rock" id="rock">
+        <button onclick="playGame('rock')" class="game-card rock" id="rock">
             <img src="./images/rock.jpg" alt="">
         </button>
-        <button  class="game-card paper" id="paper">
+        <button onclick="playGame('paper')" class="game-card paper" id="paper">
             <img src="./images/paper.jpg" alt="">
         </button>
-        <button class="game-card scissors" id="scissors">
+        <button onclick="playGame('scissors')" class="game-card scissors" id="scissors">
             <img src="./images/scissor.jpg" alt="">
         </button>
 
@@ -91,23 +136,38 @@ const gameArea = `<div class="game-container">
         <div class="line three"></div>
       </div>`;
 const resultArea = `<div class="result-container">
-        <button class="result-card" id="rock">
-          <img class="rock" src="./images/rock.jpg" alt="" />
-        </button>
+        <div class="player-choice">
+            <p>YOU PICKED</p>
+        </div>
         <div class="result">
             <p>YOU WIN</p>
-            <span>AGNIST PC</span>
-            <button class="play-again-button">PLAY AGAIN</button>
+            <span>AGAINST PC</span>
+            <button onclick="playAgain()" class="play-again-button">PLAY AGAIN</button>
         </div>
-        <div>
-            <button class="game-card scissors" id="scissors">
-                <img src="./images/scissor.jpg" alt="">
-            </button>
+        <div class="pc-choice">
+            <p>PC PICKED</p>
         </div>
       </div>`;
 
+const winCard = `<div class="win-card" id="win-card"></div>`;
+const looseCard = `<div class="loose-card" id="loose-card"></div>`;
+const drawCard = `<div class="draw-card" id="draw-card"></div>`;
+
+const rockImg = `<img class="rock" src="./images/rock.jpg" alt="rock" />`;
+const paperImg = `<img class="paper" src="./images/paper.jpg" alt="paper" />`;
+const scissorsImg = `<img class="scissors" src="./images/scissor.jpg" alt="scissors" />`;
+const container = document.querySelector(".container");
+
 //Initial Setup
-container.children[0].insertAdjacentHTML("afterend", gameArea);
+(function () {
+  container.innerHTML = containerHtml;
+  container.children[0].insertAdjacentHTML("afterend", gameArea);
+  if (localStorage.getItem("playerScore") !== null) {
+    playerScore = parseInt(localStorage.getItem("playerScore"));
+    pcScore = parseInt(localStorage.getItem("pcScore"));
+  }
+  updateScoreboard();
+})();
 
 //Event Listeners
 document.getElementById("rock").addEventListener("click", () => {
@@ -120,39 +180,113 @@ document.getElementById("scissors").addEventListener("click", () => {
   playGame("scissors");
 });
 
+// Functions
+// Function to play the game
 function playGame(playerChoice) {
   const pcChoice = getPcChoice();
   const result = getResult(playerChoice, pcChoice);
   updateScore(result);
-  updateScoreboard();
   showResult(playerChoice, pcChoice, result);
 }
 
+// Function to update the score in local storage and on the scoreboard
 function updateScore(result) {
   if (result === "win") playerScore++;
   else if (result === "lose") pcScore++;
+
+  localStorage.setItem("playerScore", playerScore);
+  localStorage.setItem("pcScore", pcScore);
 }
 
+// Function to update the scoreboard
 function updateScoreboard() {
   document.getElementById("player-score").querySelector("h1").innerText =
     playerScore;
   document.getElementById("pc-score").querySelector("h1").innerText = pcScore;
 }
 
-function showResult(playerChoice, pcChoice, result) {
+// Function to show the result of the game and update the UI based on the result
+async function showResult(playerChoice, pcChoice, result) {
   if (result === "win") {
     container.innerHTML = hurrayHtml;
+    document
+      .querySelector(".hurray-close-button")
+      .addEventListener("click", () => {
+        closeHurray(playerChoice, pcChoice);
+      });
   } else if (result === "lose") {
-    
+    container.innerHTML = containerHtml;
+    container.children[0].insertAdjacentHTML("afterend", resultArea);
+
+    setResult(playerChoice, document.querySelector(".player-choice"), "loose");
+    setResult(pcChoice, document.querySelector(".pc-choice"), "win");
+
+    const resultText = document.querySelector(".result p");
+    resultText.innerText = "YOU LOOSE";
+  } else {
+    container.innerHTML = containerHtml;
+    container.children[0].insertAdjacentHTML("afterend", resultArea);
+
+    setTimeout(() => {
+      setResult(playerChoice, document.querySelector(".player-choice"), "draw");
+    }, 0);
+    setResult(pcChoice, document.querySelector(".pc-choice"), "draw");
+
+    const resultText = document.querySelector(".result p");
+    resultText.innerText = "TIE UP";
+    document.querySelector(".result span").innerText = "";
+  }
+
+  updateScoreboard();
+}
+
+// Function to set the result card based on the player's choice and the result of the game
+function setResult(choice, div, result) {
+  let card;
+  if (result === "loose") {
+    div.insertAdjacentHTML("beforeend", looseCard);
+    card = document.getElementById("loose-card");
+  } else if (result === "win") {
+    div.insertAdjacentHTML("beforeend", winCard);
+    card = document.getElementById("win-card");
+  } else {
+    div.insertAdjacentHTML("beforeend", drawCard);
+    card = document.getElementById("draw-card");
+  }
+
+  if (choice === "rock") {
+    card.insertAdjacentHTML("afterbegin", rockImg);
+  } else if (choice === "paper") {
+    card.insertAdjacentHTML("afterbegin", paperImg);
+  } else {
+    card.insertAdjacentHTML("afterbegin", scissorsImg);
   }
 }
 
+// Function to close the hurray card and show the result
+function closeHurray(playerChoice, pcChoice) {
+  container.innerHTML = containerHtml;
+  container.children[0].insertAdjacentHTML("afterend", resultArea);
+  setResult(playerChoice, document.querySelector(".player-choice"), "win");
+  setResult(pcChoice, document.querySelector(".pc-choice"), "loose");
+  updateScoreboard();
+}
+
+// Function to play again
+function playAgain() {
+  container.innerHTML = containerHtml;
+  container.children[0].insertAdjacentHTML("afterend", gameArea);
+  updateScoreboard();
+}
+
+// Function to get the computer's choice randomly
 function getPcChoice() {
   const choices = ["rock", "paper", "scissors"];
   const randomIndex = Math.floor(Math.random() * choices.length);
   return choices[randomIndex];
 }
 
+// Function to get the result of the game based on the player's choice and the computer's choice
 function getResult(playerChoice, pcChoice) {
   if (playerChoice === pcChoice) {
     return "draw";
@@ -166,4 +300,16 @@ function getResult(playerChoice, pcChoice) {
   } else {
     return "lose";
   }
+}
+
+// Function to show the rules of the game
+function showRules() {
+  const ruleCard = document.querySelector(".rule-card-popup");
+  ruleCard.style.display = "flex";
+  const closeButton = document.querySelector(".close-button");
+  closeButton.style.display = "flex";
+  closeButton.addEventListener("click", () => {
+    ruleCard.style.display = "none";
+    closeButton.style.display = "none";
+  });
 }
